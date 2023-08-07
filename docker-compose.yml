@@ -1,0 +1,24 @@
+version: "3"
+services:
+  traktor_obs_relay:
+    image: rust:latest
+    volumes:
+      - ./:/usr/src/app
+      - ./config.toml:/root/config.toml
+    working_dir: /usr/src/app
+    command: bash -c "git clone https://github.com/vladkorotnev/traktor-obs-relay.git . && cargo build && cargo run"
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+  
+  track_suggestor:
+    image: electronuserland/builder:wine
+    volumes:
+      - $PWD/Music/Native Instruments/Traktor:/app/data
+      - ./:/usr/src/app
+    working_dir: /usr/src/app
+    environment:
+      - DISPLAY=$DISPLAY
+    command: bash -c "git clone https://github.com/berkon/track-suggestor.git . && npm install && npm start"
+
+

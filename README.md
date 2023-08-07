@@ -1,2 +1,2 @@
-# traktor-roadie
-Hack traktor to give up track info from Native Instrument interfaces. Use that info to make dynamic LIVE playlists. Additionally sends the info to OBS ready file for videostreaming.
+Dynamic LIVE playlists to Traktor with track suggestions based on your criterias. Also broadcasts trackname to OBS for video streams.
+
