@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Received Data</title>
+  </head>
+  <body>
+    <h1>Received Data:</h1>
+    <table id="data-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Artist</th>
+          <th>Album</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      // Fetch the received data from the server
+      fetch('/data')
+        .then((response) => response.json())
+        .then((data) => {
+          const tableBody = document.querySelector('#data-table tbody');
+
+          // Iterate over the received data and create table rows
+          data.forEach((item) => {
+            const row = document.createElement('tr');
+            const titleCell = document.createElement('td');
+            const artistCell = document.createElement('td');
+            const albumCell = document.createElement('td');
+
+            titleCell.textContent = item.title;
+            artistCell.textContent = item.artist;
+            albumCell.textContent = item.album;
+
+            row.appendChild(titleCell);
+            row.appendChild(artistCell);
+            row.appendChild(albumCell);
+
+            tableBody.appendChild(row);
+          });
+        });
+    </script>
+  </body>
+</html>

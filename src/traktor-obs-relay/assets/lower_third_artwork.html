@@ -1,0 +1,62 @@
+<html>
+    <head>
+        <title>Current Track Widget</title>
+        <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=RocknRoll+One&display=swap" rel="stylesheet">
+        <link href="styles/lower_third.css" rel="stylesheet">
+        <script type="text/javascript" src="api/api-ws.js"></script>
+        <script type="text/javascript" src="api/api.js"></script>
+        <script type="text/javascript">
+            // Called when track ends playing
+            function popTrack(meta) {
+                let container = document.getElementById("tracks");
+                let x = document.querySelector('.track[data-filepath="'+meta.filePath.replace(/\\/g,"/")+'"]');
+                if(x) {
+                    x.classList = "track removing";
+                    setTimeout(() => {
+                        container.removeChild(x);
+                    }, 1001);
+                }
+            }
+
+            // Called when track starts playing
+            function pushTrack(meta) {
+                let container = document.getElementById("tracks");
+
+                let row = document.createElement("div");
+                row.classList = "track adding";
+                row.setAttribute("data-filepath", meta.filePath.replace(/\\/g,"/"));
+
+                let imgEl = document.createElement("img");
+                imgEl.classList = "cover";
+                imgEl.src = getArtUrl(meta);
+                row.appendChild(imgEl);
+
+                let contEl = document.createElement("div");
+                contEl.classList = "meta";
+                row.appendChild(contEl);
+
+                let titleEl = document.createElement("span");
+                titleEl.classList = "title";
+                titleEl.innerText = meta.title;
+                contEl.appendChild(titleEl);
+
+                let artistEl = document.createElement("span");
+                artistEl.classList = "artist";
+                artistEl.innerText = meta.artist;
+                contEl.appendChild(artistEl);
+                
+                container.appendChild(row);
+
+                requestAnimationFrame(() => {
+                    row.classList = "track";
+                });
+            }
+        </script>
+    </head>
+    <body>
+        <div class="header"><span>Now Playing</span></div>
+        <div class="tracks" id="tracks">
+        </div>
+    </body>
+</html>

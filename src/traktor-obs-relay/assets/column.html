@@ -1,0 +1,68 @@
+<html>
+    <head>
+        <title>History Widget</title>
+        <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=RocknRoll+One&display=swap" rel="stylesheet">
+        <link href="styles/column.css" rel="stylesheet">
+        <script type="text/javascript" src="api/api-ws.js"></script>
+        <script type="text/javascript" src="api/api.js"></script>
+        <script type="text/javascript">
+            // Remove invisible items
+            function cleanup() {
+                let container = document.getElementById("tracks");
+                var row = container.lastElementChild;
+                while(row && !isInViewport(row)) {
+                    container.removeChild(row);
+                    row = container.lastElementChild;
+                }
+            }
+            // Called when track ends playing
+            function popTrack(meta) {
+                let container = document.getElementById("tracks");
+                
+                if(container.firstElementChild && 
+                    container.firstElementChild.getAttribute("data-filepath") == meta.filePath) return;
+                    
+                let row = document.createElement("div");
+                row.classList = "track adding";
+                row.setAttribute("data-filepath", meta.filePath);
+
+                let titleEl = document.createElement("span");
+                titleEl.classList = "title";
+                titleEl.innerText = meta.title;
+                row.appendChild(titleEl);
+
+                let artistEl = document.createElement("span");
+                artistEl.classList = "artist";
+                artistEl.innerText = meta.artist;
+                row.appendChild(artistEl);
+                
+                if(container.firstChild) {
+                    container.insertBefore(row, container.firstChild);
+                }
+                else {
+                    container.appendChild(row);
+                }
+
+                setTimeout(() => {
+                    row.classList = "track";
+                    
+                    cleanup();
+                }, 1);
+            }
+
+            function isInViewport(el) {
+                const rect = el.getBoundingClientRect();
+                return rect.top >= 0;
+            }
+        </script>
+    </head>
+    <body>
+        <div class="header"><span>Last Played</span></div>
+        <div id="overlay">
+            <div class="tracks" id="tracks">
+                <!-- tracks will go here -->
+            </div>
+        </div>
+    </body>
+</html>

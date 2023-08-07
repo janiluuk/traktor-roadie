@@ -1,0 +1,174 @@
+<html>
+    <head>
+        <title>Subtitle Render</title>
+        <script type="text/javascript" src="./3rdparty/octopus/subtitles-octopus.js"></script> 
+        <style type="text/css">
+            html, body {
+                margin: 0;
+            }
+
+            #screen {
+                position:absolute;
+                left: 0; 
+                top: 0;
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="screen"></canvas>
+        <script type="text/javascript" src="assparse.js"></script>
+        <script type="text/javascript" src="api/api-ws.js"></script> 
+        <script type="text/javascript" src="api/api.js"></script>
+        <script type="text/javascript">
+            var fps = 30;//<-- MUST BE SAME AS IN OBS!!!
+
+            // ------------------------------------------------------------------------------
+
+            // Initialize the subtitle renderer
+            var renderOpts = {
+                canvas: document.getElementById('screen'),
+                subUrl: '/data/dummy.ass', // octopus doesn't like null urls on init
+                fonts: ['/3rdparty/fonts/RocknRollOne-Regular.ttf'],
+                workerUrl: '/3rdparty/octopus/subtitles-octopus-worker.js',
+                legacyWorkerUrl: '/3rdparty/octopus/subtitles-octopus-worker-legacy.js',
+                lossyRender: true,
+            };
+            var renderer = null;
+
+            function recreateRenderer() {
+                renderer = new SubtitlesOctopus(renderOpts);
+                updateResolution();
+                renderer.setIsPaused(true, 0);
+                window.addEventListener("resize", (ev) => {
+                    updateResolution();
+                }, false);
+                window.addEventListener("load", (ev) => {
+                    updateResolution();
+                }, false);
+            }
+
+            // Queue of meta objects for decks that are playing and have subtitles
+            var queue = [];
+            var current = undefined;
+            var playingSubtitles = false;
+            
+            var fpsRecip = 1/fps; // frame time in seconds
+            var frameTime = fpsRecip*1000; // frame time in ms
+            
+            var animatorHandle = undefined;
+
+            function updateResolution() {
+                let el = document.getElementById('screen');
+                renderer.resize(el.clientWidth, el.clientHeight);
+            }
+
+            function runSubtitles() {
+                // If already running, return
+                if(playingSubtitles) return;
+
+                // If nothing to play, return
+                if(queue.length == 0) return;
+
+                // If not playing any subtitles, play the first queued subtitles
+                current = queue.shift();
+
+                recreateRenderer();
+                renderer.setTrack( current.subtitleData );
+                renderer.setCurrentTime(current.elapsedTime);
+
+                playingSubtitles = true;
+            }
+
+            function stopSubtitles() {
+                if(!playingSubtitles) return;
+                renderer.freeTrack();
+                current = undefined;
+                playingSubtitles = false;
+                renderer.setIsPaused(true);
+            }
+
+            // Called when track ends playing
+            function popTrack(meta) {
+                console.log("Pop track:", meta);
+
+                if(current && current.filePath == meta.filePath) {
+                    // Stop current subtitles
+                    stopSubtitles();
+                    // If any other are in the queue, start playing them
+                    runSubtitles();
+                } else {
+                    // Dequeue the deck's subtitles
+                    queue = queue.filter(item => item.filePath != meta.filePath);
+                }
+            }
+
+            const NonVFDLineFilter = (ev) => {return (ev._type == AssEventType.Comment && ev.style == "VFD") ? null : ev};
+
+            // Called when new track plays
+            function pushTrack(meta) {
+                // Enqueue deck's subtitles if any
+                let xhr = new XMLHttpRequest();
+                xhr.open("GET", getSubtitleUrl(meta));
+                xhr.onload = () => {
+                    if (xhr.status == 200) {
+                        meta.subtitleData = xhr.response;
+                        let parser = new AssParse(xhr.response, NonVFDLineFilter);
+                        parser.parse();
+                        if(parser.events.length == 0) return; // if VFD-only script, ignore it
+                        queue.push(meta);
+                        console.log("Push track into subtitle queue", meta);
+                        // Start playing if not yet
+                        runSubtitles();
+                    } else {
+                        console.error("Subtitles error", xhr.status);
+                    }
+                };
+                xhr.onerror = console.error;
+                xhr.send();
+            }
+
+            // Called periodically when a track is progressing
+            function trackTick(meta) {
+                if(current && current.filePath == meta.filePath) {
+                    if( (Math.abs(meta.elapsedTime - current.elapsedTime) > (fps/4)*fpsRecip) || current.tempo != meta.tempo) {
+                        // if astray for more than 0.25s of frames, force set time
+                        cancelAnimationFrame(animatorHandle);
+                        console.warn("Renderer went astray: local time ", current.elapsedTime, " actual time ", meta.elapsedTime, "delta", current.elapsedTime - meta.elapsedTime);
+                        current.elapsedTime = meta.elapsedTime;
+                        renderer.setCurrentTime(current.elapsedTime);
+                        lastAnim = Date.now() + frameTime;
+                        setTimeout(() => { animatorHandle = requestAnimationFrame(animator); }, frameTime);
+                    }
+                    renderer.setIsPaused(false);
+                    current.tempo = meta.tempo;
+                } else {
+                    let idx = queue.findIndex(x => x.filePath == meta.filePath);
+                    if(idx > -1) {
+                        meta.subtitleData = queue[idx].subtitleData;
+                        queue[idx] = meta;
+                    }
+                }
+            }
+
+            var lastAnim = Date.now();
+            function animator() {
+                animatorHandle = requestAnimationFrame(animator);
+
+                var now = Date.now();
+                var elapsed = now - lastAnim;
+
+                if(elapsed > frameTime) {
+                    if(playingSubtitles && current) {
+                        current.elapsedTime += ((elapsed * current.tempo) /1000);
+                     //   document.title = Math.floor(current.elapsedTime/60) + ":" + Math.ceil(current.elapsedTime % 60);
+                        renderer.setIsPaused(false);
+                        renderer.setCurrentTime(current.elapsedTime);
+                    }
+                    lastAnim = now;
+                }
+            }
+        </script>
+    </body>
+</html>
